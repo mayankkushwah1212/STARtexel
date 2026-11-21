@@ -1,0 +1,17 @@
+[project]
+name = "startexel-ai"
+version = "0.1.0"
+description = "FastAPI AI service for startexel monorepo"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.111.0,<1.0.0",
+    "uvicorn[standard]>=0.30.0,<1.0.0",
+    "pydantic>=2.7.0,<3.0.0",
+    "pydantic-settings>=2.3.0,<3.0.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
