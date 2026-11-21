@@ -20,6 +20,7 @@ enum Role {
 }
 
 enum UserStatus {
+  PENDING
   ACTIVE
   INACTIVE
   SUSPENDED
@@ -189,7 +190,7 @@ model User {
   lastName     String     @map("last_name") @db.VarChar(100)
   phoneNumber  String?    @map("phone_number") @db.VarChar(50)
   role         Role       @default(STARTUP)
-  status       UserStatus @default(ACTIVE)
+  status       UserStatus @default(PENDING)
   departmentId String?    @map("department_id") @db.Uuid
   startupId    String?    @map("startup_id") @db.Uuid
   avatarUrl    String?    @map("avatar_url") @db.VarChar(500)

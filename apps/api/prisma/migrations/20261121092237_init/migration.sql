@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TYPE "Role" AS ENUM ('ADMIN', 'DEPT', 'STARTUP', 'EVALUATOR', 'AUDITOR');
 
 -- CreateEnum
-CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
+CREATE TYPE "UserStatus" AS ENUM ('PENDING', 'ACTIVE', 'INACTIVE', 'SUSPENDED');
 
 -- CreateEnum
 CREATE TYPE "DepartmentStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'ARCHIVED');
@@ -92,7 +92,7 @@ CREATE TABLE "users" (
     "last_name" VARCHAR(100) NOT NULL,
     "phone_number" VARCHAR(50),
     "role" "Role" NOT NULL DEFAULT 'STARTUP',
-    "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
+    "status" "UserStatus" NOT NULL DEFAULT 'PENDING',
     "department_id" UUID,
     "startup_id" UUID,
     "avatar_url" VARCHAR(500),
