@@ -162,3 +162,49 @@ The following root commands orchestrate tasks across the monorepo via Turborepo:
 | PostgreSQL | pgvector/pgvector | `localhost:5432` |
 | Redis | Redis 7 Alpine | `localhost:6379` |
 | MinIO Console | MinIO | [http://localhost:9001](http://localhost:9001) |
+
+---
+
+## Database Management & Prisma (apps/api)
+
+Prisma ORM is configured in `apps/api` with PostgreSQL and the `pgvector` extension.
+
+### Prisma CLI Commands
+
+Run these commands from `apps/api` (or using `--filter @startexel/api` from root):
+
+```bash
+# Generate Prisma Client
+pnpm --filter @startexel/api prisma:generate
+
+# Apply migrations
+pnpm --filter @startexel/api prisma:migrate
+
+# Seed demo data across all 11 tables
+pnpm --filter @startexel/api prisma:seed
+
+# Launch interactive Prisma Studio GUI
+pnpm --filter @startexel/api exec prisma studio
+```
+
+---
+
+## Demo Accounts & Authentication
+
+All demo user accounts are seeded with hashed passwords (`bcrypt`).
+
+**Default Password for all demo accounts**: `Password123!`
+
+| Role | Name | Email | Affiliation / Scope |
+|---|---|---|---|
+| `ADMIN` | Sarah Jenkins | `admin@startexel.gov` | Platform Super Administrator |
+| `DEPT` | Marcus Vance | `transport.lead@startexel.gov` | Dept. of Urban Mobility & Smart Transit |
+| `DEPT` | Rajesh Sharma | `cleanwater.officer@startexel.gov` | Dept. of Water Resources & Clean Environment |
+| `DEPT` | Dr. Elena Rostova | `health.director@startexel.gov` | Dept. of Public Health & Biosecurity |
+| `STARTUP` | Vikram Patel | `founder@aerovantage.io` | AeroVantage Mobility Technologies |
+| `STARTUP` | Anya Chen | `cto@ecopurify.tech` | EcoPurify WaterTech Solutions |
+| `STARTUP` | Dr. Tariq Al-Mansoor | `ceo@medsense.ai` | MedSense Diagnostics AI |
+| `EVALUATOR` | Prof. Arthur Pendelton | `evaluator.transport@startexel.org` | Transportation & Autonomous Systems Expert |
+| `EVALUATOR` | Dr. Maya Lin | `evaluator.biotech@startexel.org` | Clinical Diagnostics & Water Chemistry Expert |
+| `AUDITOR` | Robert Callahan | `auditor.general@startexel.gov` | State Comptroller & Integrity Auditor |
+
