@@ -21,4 +21,12 @@ describe('JWT_SECRET Startup Validation', () => {
       new JwtStrategy();
     }).toThrow('JWT_SECRET environment variable is missing.');
   });
+
+  it('validateEnv function must throw if JWT_SECRET is missing', () => {
+    delete process.env.JWT_SECRET;
+    const { validateEnv } = require('../src/config/env.validation');
+    expect(() => {
+      validateEnv({});
+    }).toThrow('JWT_SECRET environment variable is missing.');
+  });
 });

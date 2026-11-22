@@ -5,11 +5,13 @@ import { AppModule } from '../src/app.module';
 import { JwtService } from '@nestjs/jwt';
 import { Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 describe('Auth & RBAC (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
-  let prisma: PrismaService;
+  let prisma: any;
 
   // Cached tokens for demo accounts
   let adminToken: string;
@@ -19,9 +21,124 @@ describe('Auth & RBAC (e2e)', () => {
   let auditorToken: string;
 
   beforeAll(async () => {
+    const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
+    const mockUsers = new Map<string, any>();
+    const seeded = [
+      {
+        id: crypto.randomUUID(),
+        email: 'admin@startexel.gov',
+        passwordHash: defaultPasswordHash,
+        firstName: 'Sarah',
+        lastName: 'Jenkins',
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        id: crypto.randomUUID(),
+        email: 'transport.lead@startexel.gov',
+        passwordHash: defaultPasswordHash,
+        firstName: 'Marcus',
+        lastName: 'Vance',
+        role: Role.DEPT,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        id: crypto.randomUUID(),
+        email: 'founder@aerovantage.io',
+        passwordHash: defaultPasswordHash,
+        firstName: 'Vikram',
+        lastName: 'Patel',
+        role: Role.STARTUP,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        id: crypto.randomUUID(),
+        email: 'evaluator.transport@startexel.org',
+        passwordHash: defaultPasswordHash,
+        firstName: 'Arthur',
+        lastName: 'Pendelton',
+        role: Role.EVALUATOR,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        id: crypto.randomUUID(),
+        email: 'auditor.general@startexel.gov',
+        passwordHash: defaultPasswordHash,
+        firstName: 'Robert',
+        lastName: 'Callahan',
+        role: Role.AUDITOR,
+        status: UserStatus.ACTIVE,
+      },
+    ];
+
+    for (const u of seeded) {
+      mockUsers.set(u.email, { ...u });
+    }
+
+    const mockPrisma = {
+      user: {
+        findUnique: jest.fn(async ({ where }) => {
+          if (where.id) {
+            for (const u of mockUsers.values()) {
+              if (u.id === where.id) return { ...u };
+            }
+            return null;
+          }
+          if (where.email) {
+            return mockUsers.get(where.email.toLowerCase().trim()) || null;
+          }
+          return null;
+        }),
+        create: jest.fn(async ({ data }) => {
+          const user = {
+            id: crypto.randomUUID(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ...data,
+          };
+          mockUsers.set(user.email, user);
+          return { ...user };
+        }),
+        update: jest.fn(async ({ where, data }) => {
+          for (const u of mockUsers.values()) {
+            if (u.id === where.id) {
+              Object.assign(u, data);
+              return { ...u };
+            }
+          }
+          throw new Error('User not found');
+        }),
+        deleteMany: jest.fn(async ({ where }) => {
+          if (where?.email?.contains) {
+            for (const [email] of mockUsers.entries()) {
+              if (email.includes(where.email.contains)) {
+                mockUsers.delete(email);
+              }
+            }
+          }
+          return { count: 1 };
+        }),
+      },
+      auditLog: {
+        create: jest.fn(async ({ data }) => ({ id: crypto.randomUUID(), ...data })),
+        findFirst: jest.fn(async () => null),
+      },
+      $executeRawUnsafe: jest.fn(async () => 1),
+      $queryRawUnsafe: jest.fn(async () => []),
+      $transaction: jest.fn(async (callback) => {
+        if (typeof callback === 'function') {
+          return callback(mockPrisma);
+        }
+        return callback;
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(mockPrisma)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -34,7 +151,7 @@ describe('Auth & RBAC (e2e)', () => {
     await app.init();
 
     jwtService = moduleFixture.get<JwtService>(JwtService);
-    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    prisma = mockPrisma;
 
     // Login with seeded demo accounts to obtain tokens
     const adminRes = await request(app.getHttpServer())
@@ -214,6 +331,29 @@ describe('Auth & RBAC (e2e)', () => {
       expect(res.body.user.email).toBe(pendingEmail);
       expect(res.body.user.status).toBe(UserStatus.ACTIVE);
       expect(res.body.user.passwordHash).toBeUndefined();
+    });
+  });
+
+  // ============================================================================
+  // GET /auth/me PROFILE ENDPOINT
+  // ============================================================================
+  describe('GET /auth/me Profile', () => {
+    it('should return profile of currently authenticated user without passwordHash', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${startupToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBeDefined();
+      expect(res.body.email).toBe('founder@aerovantage.io');
+      expect(res.body.role).toBe(Role.STARTUP);
+      expect(res.body.passwordHash).toBeUndefined();
+    });
+
+    it('should reject unauthenticated request to /auth/me with 401 Unauthorized', async () => {
+      const res = await request(app.getHttpServer()).get('/auth/me');
+      expect(res.status).toBe(401);
+      expect(res.body.message).toContain('Authentication token is missing');
     });
   });
 

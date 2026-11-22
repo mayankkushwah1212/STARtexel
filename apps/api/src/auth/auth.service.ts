@@ -10,6 +10,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Role, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -17,8 +18,10 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly configService?: ConfigService,
   ) {
-    if (!process.env.JWT_SECRET) {
+    const secret = this.configService?.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
+    if (!secret) {
       throw new Error('JWT_SECRET environment variable is missing.');
     }
   }
@@ -104,6 +107,9 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      status: user.status,
+      departmentId: user.departmentId,
+      startupId: user.startupId,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -128,5 +134,22 @@ export class AuthService {
         startupId: user.startupId,
       },
     };
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        department: true,
+        startup: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
+    const { passwordHash, ...sanitized } = user;
+    return sanitized;
   }
 }

@@ -1,20 +1,25 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Role } from '@prisma/client';
+import { Role, UserStatus } from '@prisma/client';
+
+import { ConfigService } from '@nestjs/config';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: Role;
+  status?: UserStatus;
+  departmentId?: string | null;
+  startupId?: string | null;
   iat?: number;
   exp?: number;
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    const secret = process.env.JWT_SECRET;
+  constructor(private readonly configService?: ConfigService) {
+    const secret = configService?.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
     if (!secret) {
       throw new Error('JWT_SECRET environment variable is missing.');
     }
@@ -34,6 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub,
       email: payload.email,
       role: payload.role,
+      status: payload.status,
+      departmentId: payload.departmentId,
+      startupId: payload.startupId,
     };
   }
 }

@@ -19,7 +19,13 @@ import {
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL || process.env.DATABASE_URL,
+    },
+  },
+});
 
 // Helper to generate normalized 384-dimensional vector string for pgvector
 function generatePseudoEmbedding(seed: number): string {
@@ -48,8 +54,22 @@ interface AuditLogInput {
   createdAt: Date;
 }
 
+function canonicalJsonStringify(obj: any): string {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map((item) => (item === undefined ? 'null' : canonicalJsonStringify(item))).join(',') + ']';
+  }
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalJsonStringify(obj[k])).join(',') + '}';
+}
+
 function createChainedAuditLog(input: AuditLogInput) {
-  const dataToHash = `${lastHash}|${input.actorId || 'SYSTEM'}|${input.action}|${input.entity}|${input.entityId}|${JSON.stringify(input.payload)}|${input.createdAt.toISOString()}`;
+  const canonicalPayload = canonicalJsonStringify(input.payload);
+  const dataToHash = `${lastHash}|${input.actorId || 'SYSTEM'}|${input.action}|${input.entity}|${input.entityId}|${canonicalPayload}|${input.createdAt.toISOString()}`;
   const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
   const record = {
     actorId: input.actorId,
@@ -67,6 +87,15 @@ function createChainedAuditLog(input: AuditLogInput) {
 
 async function main() {
   console.log('🌱 Starting database seeding for Startexel...');
+  lastHash = 'GENESIS';
+
+  // Synchronize startexel_app password from environment if provided
+  const appDbPassword = process.env.APP_DB_PASSWORD;
+  if (appDbPassword) {
+    const escaped = appDbPassword.replace(/'/g, "''");
+    await prisma.$executeRawUnsafe(`ALTER ROLE startexel_app WITH PASSWORD '${escaped}'`);
+    console.log('🔒 Synchronized startexel_app password from environment.');
+  }
 
   // Clean existing data in reverse relational order
   await prisma.auditLog.deleteMany();
@@ -953,20 +982,20 @@ async function main() {
       createdAt: new Date('2026-10-03T11:30:00Z'),
     }),
     createChainedAuditLog({
-      actorId: startupUserAero.id,
-      action: 'PROPOSAL_SUBMITTED',
-      entity: 'Proposal',
-      entityId: proposalTrafficAero.id,
-      payload: { code: 'PROP-2026-001', problemCode: 'PRB-2026-001', requestedBudget: 135000.0 },
-      createdAt: new Date('2026-10-10T14:30:00Z'),
-    }),
-    createChainedAuditLog({
       actorId: startupUserEco.id,
       action: 'PROPOSAL_SUBMITTED',
       entity: 'Proposal',
       entityId: proposalWaterEco.id,
       payload: { code: 'PROP-2026-003', problemCode: 'PRB-2026-002', requestedBudget: 115000.0 },
       createdAt: new Date('2026-10-05T09:20:00Z'),
+    }),
+    createChainedAuditLog({
+      actorId: startupUserAero.id,
+      action: 'PROPOSAL_SUBMITTED',
+      entity: 'Proposal',
+      entityId: proposalTrafficAero.id,
+      payload: { code: 'PROP-2026-001', problemCode: 'PRB-2026-001', requestedBudget: 135000.0 },
+      createdAt: new Date('2026-10-10T14:30:00Z'),
     }),
     createChainedAuditLog({
       actorId: evaluatorTransport.id,
@@ -983,14 +1012,6 @@ async function main() {
       entityId: pilotTraffic.id,
       payload: { code: 'PLT-2026-001', proposalCode: 'PROP-2026-001', allocatedBudget: 135000.0 },
       createdAt: new Date('2026-10-28T16:00:00Z'),
-    }),
-    createChainedAuditLog({
-      actorId: deptUserTransit.id,
-      action: 'MILESTONE_VERIFIED',
-      entity: 'Milestone',
-      entityId: 'MILESTONE-PLT-001-1',
-      payload: { pilotCode: 'PLT-2026-001', orderIndex: 1, disbursementAmount: 45000.0 },
-      createdAt: new Date('2026-11-20T15:30:00Z'),
     }),
     createChainedAuditLog({
       actorId: deptUserWater.id,
@@ -1015,6 +1036,14 @@ async function main() {
       entityId: procurementWater.id,
       payload: { contractNumber: 'PROC-2026-0089', auditResult: 'COMPLIANT_WITH_GOVTECH_REGULATIONS' },
       createdAt: new Date('2026-11-18T14:45:00Z'),
+    }),
+    createChainedAuditLog({
+      actorId: deptUserTransit.id,
+      action: 'MILESTONE_VERIFIED',
+      entity: 'Milestone',
+      entityId: 'MILESTONE-PLT-001-1',
+      payload: { pilotCode: 'PLT-2026-001', orderIndex: 1, disbursementAmount: 45000.0 },
+      createdAt: new Date('2026-11-20T15:30:00Z'),
     }),
   ];
 
