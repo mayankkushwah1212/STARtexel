@@ -10,6 +10,9 @@ import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { ProblemsModule } from './problems/problems.module';
 import { ProposalsModule } from './proposals/proposals.module';
+import { EvaluationsModule } from './evaluations/evaluations.module';
+import { PilotsModule } from './pilots/pilots.module';
+import { ProcurementsModule } from './procurements/procurements.module';
 
 @Module({
   imports: [
@@ -29,6 +32,9 @@ import { ProposalsModule } from './proposals/proposals.module';
     AuditModule,
     ProblemsModule,
     ProposalsModule,
+    EvaluationsModule,
+    PilotsModule,
+    ProcurementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
